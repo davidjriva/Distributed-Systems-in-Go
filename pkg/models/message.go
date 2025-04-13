@@ -28,14 +28,12 @@ func (m *Message) Type() string {
 	// We can unmarshal the message to transform it back into a MessageBody struct.
 	var msgBody MessageBody
 
-	err := json.Unmarshal([]byte(m.Body), msgBody)
+	err := json.Unmarshal([]byte(m.Body), &msgBody)
 
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return "Error"
 	}
 
-	fmt.Printf("%+v\n", msgBody)
-
-	return "Success"
+	return msgBody.Type
 }
