@@ -1,8 +1,6 @@
 package models
 
 /*
-	initmessagebody.go
-
 	InitMessageBody represents the message body for the "init" message.
 */
 

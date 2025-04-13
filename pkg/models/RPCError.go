@@ -20,6 +20,9 @@ const (
 	TxnConflict            = 30
 )
 
+/*
+	RPCError represents a Maelstrom RPC error.
+*/
 type RPCError struct {
 	Code int
 	Text string
