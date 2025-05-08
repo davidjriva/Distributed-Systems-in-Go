@@ -21,7 +21,6 @@ And should respond with something like:
 IDs may be of any type--strings, booleans, integers, floats, compound JSON values, etc.
 
 # RPC: Generate
-RPC: Generate!
 Asks a node to generate a new ID. Servers respond with a generate_ok message containing an id field, which should be a globally unique value. IDs may be of any type.
 
 Request:
