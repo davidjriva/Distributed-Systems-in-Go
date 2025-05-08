@@ -1,0 +1,1 @@
+/Users/davidriva/Desktop/Coding-Projects/Distributed-Systems-in-Go/maelstrom/maelstrom test -w echo --bin /Users/davidriva/Desktop/Coding-Projects/Distributed-Systems-in-Go/maelstrom-echo/maelstrom-echo --node-count 1 --time-limit 10

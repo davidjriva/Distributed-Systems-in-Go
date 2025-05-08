@@ -1,12 +1,37 @@
+# Introduction
+
 In this challenge, we're going to create a node. 
 
-In Maelstrom, we create a node which is a binary that receives JSON messages from STDIN and sends JSON messages to STDOUT. The full protocol spec is here:
+The node will receive an "echo" message from Maelstrom that looks like:
+```json
+{
+  "src": "c1",
+  "dest": "n1",
+  "body": {
+    "type": "echo",
+    "msg_id": 1,
+    "echo": "Please echo 35"
+  }
+}
+```
 
-https://github.com/jepsen-io/maelstrom/blob/main/doc/protocol.md
+Nodes and clients are sequentially numbered (i.e. n1,n2,...nk). Nodes are prefixed with "n" and external clients are prefixed with "c". Message IDs are unique per source node which is handled by the Go Maelstrom library.
 
-We're provided with this Maelstrom node library:
+My job is to send a message with the same body back to the client but with a message type of "echo_ok". It should also associate itself with the original message by setting the "in_reply_to" field to the original message ID. This reply field is handled automatically if you use the `Node.Reply()` method.
 
-https://pkg.go.dev/github.com/jepsen-io/maelstrom/demo/go#section-readme
+The response may look something like:
+```json
+{
+  "src": "n1",
+  "dest": "c1",
+  "body": {
+    "type": "echo_ok",
+    "msg_id": 1,
+    "in_reply_to": 1,
+    "echo": "Please echo 35"
+  }
+}
+```
 
-This library provides maelstrom.Node that handles the basic boilerplate for you. It lets you register handler functions for each message type-- similar to how http.Handler works in the standard library.
+# Task 1: Implement a node
 
