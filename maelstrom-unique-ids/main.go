@@ -2,8 +2,8 @@ package main
 
 import (
     "encoding/json"
+	"strconv"
     "log"
-	"sync"
 	"sync/atomic"
     maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
@@ -15,44 +15,24 @@ func main() {
 	// Create an atomic counter (integer)
 	var uid atomic.Uint64
 
-	// Create a wait group
-	// Wait groups help us wait for all go routines to finish their work
-	var wg sync.WaitGroup
-
-	// Define the "generate" response logic
 	n.Handle("generate", func(msg maelstrom.Message) error {
-		// Unmarshal the message body as a loosely-typed map
 		var body map[string]any
-
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-
-		// Update the message type to return back
+	
+		// Update the message type
 		body["type"] = "generate_ok"
-		
-		// Synchronize on atomic integer
-		wg.Add(1)
-
-		// Start new goroutine to update the "id" variable
-		// and increase the count of the uid variable by one.
-		go func(){
-			// Assign a unique ID
-			body["id"] = uid.Load()
-
-			// Increase the count by one
-			uid.Add(1)
-
-			// Free lock
-			wg.Done()
-		}()
-
-		// Wait for operation to finish
-		wg.Wait()
-
-		// Echo the original message back with the updated message type
+	
+		// Atomically increment and get the new unique ID
+		id := uid.Add(1) - 1 // `Add(1)` returns the *new* value, so subtract 1 for the *previous* value
+	
+		// Set the ID
+		body["id"] = n.ID() + "_" + strconv.FormatUint(id, 10)
+	
+		// Send the response
 		return n.Reply(msg, body)
-	})
+	})	
 
 	if err := n.Run(); err != nil {
 		log.Fatal(err)
