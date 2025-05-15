@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 	"strconv"
+	"safeslice"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
