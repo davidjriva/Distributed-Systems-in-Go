@@ -7,12 +7,48 @@ import (
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
+/*
+	copyStringMap creates and returns a shallow copy of a map[string]any.
+	It assumes the values are safe to copy directly (e.g., strings, numbers, etc.)
+	and does not perform a deep copy of nested structures.
+*/
 func copyStringMap(original map[string]any) map[string]any {
     copyMap := make(map[string]any, len(original))
     for k, v := range original {
         copyMap[k] = v // v is string, so value copy is fine
     }
     return copyMap
+}
+
+/*
+	extractCurrentNodesNeighbors extracts the list of neighbor node IDs for a given node
+	from the "topology" field of the incoming message body.
+
+	Parameters:
+		- body: the JSON-decoded message body, expected to contain a "topology" field.
+		- nodeId: the ID of the current node.
+
+	Returns:
+		- A slice of strings representing the neighbor node IDs.
+		- An error if the "topology" field is missing or improperly formatted.
+*/
+func extractCurrentNodesNeighbors(body map[string]any, nodeId string) ([]string, error) {	
+	topologyRaw, ok := body["topology"].(map[string]any)
+	if !ok {
+		return nil, errors.New("topology field is not a map")
+	}
+
+	currNodeNeighbors, ok := topologyRaw[nodeId].([]any)
+	if !ok {
+		return nil, errors.New("neighbors list not found or invalid")
+	}
+
+	neighbors := make([]string, len(currNodeNeighbors))
+	for i, v := range currNodeNeighbors {
+		neighbors[i], _ = v.(string)
+	}
+
+	return neighbors, nil
 }
 
 /*
@@ -108,17 +144,14 @@ func main() {
 			return err
 		}
 
-		// Extract the neighbors from the "topology" field and store it in memory
-		topologyRaw, ok := body["topology"].(map[string]any)
-		if !ok {
-			return errors.New("topology field is not a map")
+		// Extract the neighbors from the "topology" field and store it in memory.
+		// The node only stores the neighbors corresponding to this specific node.
+		updatedNeighbors, err := extractCurrentNodesNeighbors(body, n.ID())
+		if err != nil {
+			log.Fatalf("Failed to extract neighbors for node %s: %v", n.ID(), err)
 		}
-		
-		var topologyNeighbors []string
-		for key := range topologyRaw {
-			topologyNeighbors = append(topologyNeighbors, key)
-		}
-		neighbors = topologyNeighbors
+
+		neighbors = updatedNeighbors
 
 		// Remove "topology" key if it exists
 		delete(body, "topology")
