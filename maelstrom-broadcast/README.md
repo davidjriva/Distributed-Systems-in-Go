@@ -1,4 +1,4 @@
-# Challenge: Single-Node Broadcast
+# Challenge a: Single-Node Broadcast
 In this challenge, you’ll need to implement a broadcast system that gossips messages between all nodes in the cluster. Gossiping is a common way to propagate information across a cluster when you don’t need strong consistency guarantees.
 
 This challenge is broken up in multiple sections so that you can build out your system incrementally. First, we’ll start out with a single-node broadcast system. That may sound like an oxymoron but this lets us get our message handlers working correctly in isolation before trying to share messages between nodes.
@@ -81,3 +81,15 @@ In response, your node should return a topology_ok message body:
   "type": "topology_ok"
 }
 ```
+
+# Challenge b: Multi-Node Broadcast
+
+In this challenge, we’ll build on our Single-Node Broadcast implementation and replicate our messages across a cluster that has no network partitions.
+
+## Specification
+
+Your node should propagate values it sees from broadcast messages to the other nodes in the cluster. It can use the topology passed to your node in the topology message or you can build your own topology.
+
+The simplest approach is to simply send a node’s entire data set on every message, however, this is not practical in a real-world system. Instead, try to send data more efficiently as if you were building a real broadcast system.
+
+Values should propagate to all other nodes within a few seconds.

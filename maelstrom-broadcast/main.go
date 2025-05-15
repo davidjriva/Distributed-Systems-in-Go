@@ -7,8 +7,16 @@ import (
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
+func copyStringMap(original map[string]any) map[string]any {
+    copyMap := make(map[string]any, len(original))
+    for k, v := range original {
+        copyMap[k] = v // v is string, so value copy is fine
+    }
+    return copyMap
+}
+
 /*
-   This program...
+	This program...
 */
 func main() {
     // Initialize a new Maelstrom node for the program to run on.
@@ -20,6 +28,11 @@ func main() {
 	*/
 	broadcastVals := []float64{}
 
+	/*
+		Define a slice to store the node's neighbors in-memory.
+	*/
+	neighbors := []string{}
+
 	// Handle the 'broadcast' message type
 	n.Handle("broadcast", func(msg maelstrom.Message) error {
 		var body map[string]any
@@ -28,15 +41,44 @@ func main() {
 			return err
 		}
 
-		msgInt, ok := body["message"].(float64)
+		msgFloat, ok := body["message"].(float64)
 		if !ok {
 			// Handle error: value is not an int
 			return errors.New("message field is not a float64")
 		}
 
-		broadcastVals = append(broadcastVals, msgInt)
+		/*
+			Broadcast message to all neighbors (gossiping)
 
-		// Remove message field if it exists
+			1.) Check if we've already seen this message. If we have, then simply reply, otherwise continue.
+			2.) Create broadcast message to send to neighboring nodes.
+			3.) Send all values to the neighboring node(s).
+		*/
+
+		messageAlreadySeen := false
+
+		for _, val := range broadcastVals {
+			if val == msgFloat {
+				messageAlreadySeen = true
+				break
+			}
+		}
+
+		if !messageAlreadySeen {
+			broadcastVals = append(broadcastVals, msgFloat)
+
+			neighborBody := copyStringMap(body)
+			neighborBody["type"] = "broadcast"
+			neighborBody["message"] = msgFloat
+
+			for _, neighbor := range neighbors {
+				if err := n.Send(neighbor, neighborBody); err != nil {
+					log.Printf("Error sending to %s: %v", neighbor, err)
+				}
+			}
+		}
+
+		// Remove message field from response if it exists
 		delete(body, "message")
 
 		body["type"] = "broadcast_ok"
@@ -65,6 +107,18 @@ func main() {
 		if err:=json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
+
+		// Extract the neighbors from the "topology" field and store it in memory
+		topologyRaw, ok := body["topology"].(map[string]any)
+		if !ok {
+			return errors.New("topology field is not a map")
+		}
+		
+		var topologyNeighbors []string
+		for key := range topologyRaw {
+			topologyNeighbors = append(topologyNeighbors, key)
+		}
+		neighbors = topologyNeighbors
 
 		// Remove "topology" key if it exists
 		delete(body, "topology")
