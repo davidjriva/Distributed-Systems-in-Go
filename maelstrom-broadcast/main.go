@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"errors"
+	"sync"
+	"strconv"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
@@ -45,10 +47,33 @@ func extractCurrentNodesNeighbors(body map[string]any, nodeId string) ([]string,
 
 	neighbors := make([]string, len(currNodeNeighbors))
 	for i, v := range currNodeNeighbors {
-		neighbors[i], _ = v.(string)
+		neighbors[i], ok = v.(string)
+
+		if !ok {
+			return nil, errors.New("neighbor value is not a string")
+		}
 	}
 
 	return neighbors, nil
+}
+
+/*
+	broadcastMessageToAllNeighbors sends the given message body to all neighbor nodes.
+
+	Parameters:
+	- neighbors: a slice of neighbor node IDs to which the message will be sent.
+	- neighborBody: the message payload represented as a map[string]any to send.
+	- n: a pointer to the Maelstrom node used to send messages.
+
+	For each neighbor in the slice, the function attempts to send the message.
+	If sending fails, the error is logged but the function continues sending to remaining neighbors.
+*/
+func broadcastMessageToAllNeighbors(neighbors []string, neighborBody map[string]any, n *maelstrom.Node) {
+	for _, neighbor := range neighbors {
+		if err := n.Send(neighbor, neighborBody); err != nil {
+			log.Printf("Error sending to %s: %v", neighbor, err)
+		}
+	}
 }
 
 /*
@@ -58,16 +83,12 @@ func main() {
     // Initialize a new Maelstrom node for the program to run on.
     n := maelstrom.NewNode()
 
-	/* 
-		Define a slice to store message values in-memory.
-		In golang a slice is similar to an array but can grow and shrink dynamically.
-	*/
-	broadcastVals := []float64{}
-
-	/*
-		Define a slice to store the node's neighbors in-memory.
-	*/
-	neighbors := []string{}
+	var (
+		broadcastVals []float64 // Store message values in-memory.
+		mu sync.Mutex // A mutex lock to synchronize read/write access to broadcastVals
+		seen sync.Map // A map to track already seen messages with O(1) lookups
+		neighbors []string // Define a slice to store the node's neighbors in-memory.
+	)
 
 	// Handle the 'broadcast' message type
 	n.Handle("broadcast", func(msg maelstrom.Message) error {
@@ -90,28 +111,24 @@ func main() {
 			2.) Create broadcast message to send to neighboring nodes.
 			3.) Send all values to the neighboring node(s).
 		*/
+		key := strconv.FormatFloat(msgFloat, 'f', -1, 64)
 
-		messageAlreadySeen := false
+		if _, alreadySeen := seen.Load(key); !alreadySeen {
+			// Add the current value in 'message' to our map of already seen values 
+			seen.Store(key, true)
 
-		for _, val := range broadcastVals {
-			if val == msgFloat {
-				messageAlreadySeen = true
-				break
-			}
-		}
-
-		if !messageAlreadySeen {
+			// Safely append the message value to the list of all messages
+			mu.Lock()
 			broadcastVals = append(broadcastVals, msgFloat)
+			mu.Unlock()
 
+			// Create a 'broadcast' message to send to all neighbors
 			neighborBody := copyStringMap(body)
 			neighborBody["type"] = "broadcast"
 			neighborBody["message"] = msgFloat
 
-			for _, neighbor := range neighbors {
-				if err := n.Send(neighbor, neighborBody); err != nil {
-					log.Printf("Error sending to %s: %v", neighbor, err)
-				}
-			}
+			// Send message to all neighbors
+			broadcastMessageToAllNeighbors(neighbors, neighborBody, n)
 		}
 
 		// Remove message field from response if it exists
@@ -131,7 +148,14 @@ func main() {
 		}
 
 		body["type"] = "read_ok"
-		body["messages"] = broadcastVals
+		
+		// Create a copy of the messages safely
+		mu.Lock()	
+		valsCopy := make([]float64, len(broadcastVals))
+		copy(valsCopy, broadcastVals)
+		mu.Unlock()
+
+		body["messages"] = valsCopy
 
 		return n.Reply(msg, body)
 	})
