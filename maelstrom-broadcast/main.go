@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync"
 	"strconv"
-	"safeslice"
+	"maelstrom-broadcast/safeslice"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
@@ -84,9 +84,10 @@ func main() {
     // Initialize a new Maelstrom node for the program to run on.
     n := maelstrom.NewNode()
 
+	// Create a thread-safe slice using the custom 'safeslice' module
+	broadcastVals := safeslice.NewSafeSlice()
+
 	var (
-		broadcastVals []float64 // Store message values in-memory.
-		mu sync.Mutex // A mutex lock to synchronize read/write access to broadcastVals
 		seen sync.Map // A map to track already seen messages with O(1) lookups
 		neighbors []string // Define a slice to store the node's neighbors in-memory.
 	)
@@ -119,9 +120,7 @@ func main() {
 			seen.Store(key, true)
 
 			// Safely append the message value to the list of all messages
-			mu.Lock()
-			broadcastVals = append(broadcastVals, msgFloat)
-			mu.Unlock()
+			broadcastVals.Append(msgFloat)
 
 			// Create a 'broadcast' message to send to all neighbors
 			neighborBody := copyStringMap(body)
@@ -151,10 +150,7 @@ func main() {
 		body["type"] = "read_ok"
 		
 		// Create a copy of the messages safely
-		mu.Lock()	
-		valsCopy := make([]float64, len(broadcastVals))
-		copy(valsCopy, broadcastVals)
-		mu.Unlock()
+		valsCopy := broadcastVals.GetCopy()
 
 		body["messages"] = valsCopy
 
