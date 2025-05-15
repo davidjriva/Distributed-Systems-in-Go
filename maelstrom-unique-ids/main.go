@@ -7,7 +7,7 @@ import (
     "math"
     "sync/atomic"
     "time"
-    "math/rand"
+    "crypto/rand"
     "fmt"
     maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
