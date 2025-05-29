@@ -82,6 +82,9 @@ In response, your node should return a topology_ok message body:
 }
 ```
 
+## Solution a:
+The solution to this challenge is fairly straightforward. You need to store incoming values in a Go slice and handle messages accordingly. When a read message is received, simply return the current contents of the slice.
+
 # Challenge b: Multi-Node Broadcast
 
 In this challenge, we’ll build on our Single-Node Broadcast implementation and replicate our messages across a cluster that has no network partitions.
@@ -93,3 +96,11 @@ Your node should propagate values it sees from broadcast messages to the other n
 The simplest approach is to simply send a node’s entire data set on every message, however, this is not practical in a real-world system. Instead, try to send data more efficiently as if you were building a real broadcast system.
 
 Values should propagate to all other nodes within a few seconds.
+
+## Solution b
+
+This challenge was more complex, as it required reliably broadcasting messages across the entire network using gossip. When a node receives a new message, it first stores the message locally, then gossips it to all its neighbors. If the message has already been seen, the node simply ignores it and waits for the next one.
+
+# Challenge c: Fault Tolerant Broadcast
+
+In this challenge, we’ll build on our Multi-Node Broadcast implementation, however, this time we’ll introduce network partitions between nodes so they will not be able to communicate for periods of time.
