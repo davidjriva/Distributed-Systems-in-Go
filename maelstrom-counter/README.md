@@ -68,3 +68,27 @@ func (kv *KV) CompareAndSwap(ctx context.Context, key string, from, to any, crea
     Returns an *RPCError with a code of PreconditionFailed if the previous value
     does not match. Return a code of KeyDoesNotExist if the key did not exist.
 ```
+
+## Solution
+
+Each node writes to a shared key-value store, but to ensure concurrency and avoid write contention, each node is assigned a unique key. For example, node n1 writes to the key `counter-n1`, node n2 writes to `counter-n2`, and so on.
+
+This design prevents starvation that could occur if all nodes tried to write to the same key simultaneously.
+
+When handling an `add` RPC request:
+
+The node attempts to update its designated key using a compare-and-swap operation.
+
+If the write fails due to a race condition, the node will retry until it succeeds.
+
+Once the write is successful, the node responds with `add_ok`.
+
+When handling a `read` RPC request:
+
+The node iterates over the list of all known nodes in the cluster.
+
+For each node, it reads the corresponding key (e.g., `counter-nX`) from the key-value store.
+
+It sums all values into a total and returns that total in the response.
+
+This approach leads to eventual consistency: as long as all updates are eventually propagated and applied correctly, every node will converge to the same total value over time.
