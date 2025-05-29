@@ -103,4 +103,4 @@ This challenge was more complex, as it required reliably broadcasting messages a
 
 # Challenge c: Fault Tolerant Broadcast
 
-In this challenge, we’ll build on our Multi-Node Broadcast implementation, however, this time we’ll introduce network partitions between nodes so they will not be able to communicate for periods of time.
+Unsolved...
